@@ -79,7 +79,8 @@ namespace TricksGame
         public GameScreen(MainForm form)
         {
             mainForm = form;
-            player = new Player(Width, Height);
+            // Передаем ROAD_WIDTH (200) как третий аргумент
+            player = new Player(Width, Height, ROAD_WIDTH);
 
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             UpdateStyles();
@@ -166,18 +167,12 @@ namespace TricksGame
                 // 2. Атака игрока по врагу
                 if (!enemy.IsDead && player.IsAttacking)
                 {
-                    float hitboxX = player.X;
-                    float hitboxY = player.Y - 35; 
-
-                    float distX = enemy.X - hitboxX;
-                    float distY = enemy.Y - hitboxY;
-                    float distSq = distX * distX + distY * distY;
-
-                    if (distSq < ATK_RANGE_SQ)
+                    // Проверяем, попал ли враг в "зону меча" (конус)
+                    if (player.IsInAttackZone(enemy.X, enemy.Y))
                     {
                         bool wasAlive = !enemy.IsDead;
                         enemy.TakeDamage(ATK_DAMAGE);
-                        enemy.Y -= ATK_KNOCKBACK; 
+                        enemy.Y -= ATK_KNOCKBACK; // Отбрасываем врага вверх
 
                         // Если враг умер от этого удара, начисляем опыт
                         if (wasAlive && enemy.IsDead)
