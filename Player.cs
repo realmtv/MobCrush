@@ -3,25 +3,53 @@ using System.Drawing;
 
 namespace TricksGame
 {
-    public class Player
+    public class Player : IDisposable
     {
-        public int X, Y;
-        public int CurrentHp, MaxHp;
+        // --- Визуальные константы ---
+        public const int Radius = 10;
+        private const int HandRadius = 8;
+        private const int HandOrbitRadius = 35;
+        
+        // --- Параметры атаки ---
+        // Ускорили удар (было 5f) для более отзывчивого управления
+        private const float AttackSpeed = 12f; 
+        private const float MaxSwingAngle = 45f;
 
-        // Параметры атаки
-        private float handAngle = 0f;
-        private bool isAttacking = false;
-        private float attackSpeed = 5f;
-        private float swingDirection = 1f;
+        // --- I-Frames (Неуязвимость) ---
+        private int _invulnerableTimer;
+        public const int InvulnerableDuration = 30; // ~0.5 секунды при 60 FPS
+
+        // --- Ресурсы (создаются 1 раз в конструкторе) ---
+        private readonly SolidBrush _bodyBrush;
+        private readonly SolidBrush _handBrush;
+        private readonly SolidBrush _hitBrush; // Красная кисть для получения урона
+
+        // --- Состояние игрока ---
+        public int X { get; set; }
+        public int Y { get; set; }
+        
+        public int CurrentHp { get; private set; }
+        public int MaxHp { get; private set; }
+
+        // Состояние атаки
+        private float _handAngle;
+        private bool _isAttacking;
+        private float _swingDirection;
+
+        public bool IsAttacking => _isAttacking;
 
         public Player(int screenWidth, int screenHeight)
         {
+            // Инициализация ресурсов
+            _bodyBrush = new SolidBrush(Color.Green);
+            _handBrush = new SolidBrush(Color.Orange);
+            _hitBrush = new SolidBrush(Color.Red); // Цвет при получении урона
+
             MaxHp = 100;
             CurrentHp = MaxHp;
             UpdatePosition(screenWidth, screenHeight);
         }
 
-        // Обновление позиции (герой всегда внизу по центру)
         public void UpdatePosition(int screenWidth, int screenHeight)
         {
             X = screenWidth / 2;
@@ -30,47 +58,82 @@ namespace TricksGame
 
         public void Attack()
         {
-            if (!isAttacking)
+            if (!_isAttacking)
             {
-                isAttacking = true;
-                handAngle = 0f;
-                swingDirection = 1f; // Мах вперед
+                _isAttacking = true;
+                _handAngle = 0f;
+                _swingDirection = 1f;
             }
         }
 
         public void Update()
         {
-            // Логика анимации руки
-            if (isAttacking)
+            // 1. Логика I-Frames (таймер неуязвимости)
+            if (_invulnerableTimer > 0) _invulnerableTimer--;
+
+            // 2. Логика анимации руки
+            if (_isAttacking)
             {
-                handAngle += attackSpeed * swingDirection;
-                if (handAngle >= 45f) swingDirection = -1f; // Возврат
-                if (handAngle <= 0f) { handAngle = 0f; isAttacking = false; }
+                _handAngle += AttackSpeed * _swingDirection;
+
+                if (_handAngle >= MaxSwingAngle) 
+                    _swingDirection = -1f;
+
+                if (_handAngle <= 0f) 
+                {
+                    _handAngle = 0f;
+                    _isAttacking = false;
+                }
             }
         }
 
         public void TakeDamage(int amount)
         {
+            // Если активны I-Frames — урон игнорируется
+            if (_invulnerableTimer > 0) return;
+
             CurrentHp -= amount;
             if (CurrentHp < 0) CurrentHp = 0;
+
+            // Запускаем таймер неуязвимости
+            _invulnerableTimer = InvulnerableDuration;
         }
 
         public bool IsDead => CurrentHp <= 0;
 
+        /// <summary>
+        /// Возвращает прямоугольник хитбокса руки для проверки коллизий в GameScreen.
+        /// </summary>
+        public Rectangle GetAttackHitbox()
+        {
+            double angleRad = _handAngle * Math.PI / 180.0;
+            int handX = (int)(X + HandOrbitRadius * Math.Cos(angleRad));
+            int handY = (int)(Y - HandOrbitRadius * Math.Sin(angleRad));
+
+            // Возвращаем прямоугольник вокруг руки
+            return new Rectangle(handX - HandRadius, handY - HandRadius, HandRadius * 2, HandRadius * 2);
+        }
+
         public void Draw(Graphics g)
         {
-            // Рисуем героя
-            Brush ggBrush = new SolidBrush(Color.Green);
-            g.FillEllipse(ggBrush, X - 10, Y - 10, 20, 20);
+            // 1. Рисуем тело
+            // Если есть таймер неуязвимости — рисуем красным, иначе зеленым
+            Brush currentBodyBrush = (_invulnerableTimer > 0) ? _hitBrush : _bodyBrush;
+            g.FillEllipse(currentBodyBrush, X - Radius, Y - Radius, Radius * 2, Radius * 2);
 
-            // Рисуем руку
-            int handRadiusOrbit = 35;
-            double angleRad = handAngle * Math.PI / 180.0;
-            int handX = (int)(X + handRadiusOrbit * Math.Cos(angleRad));
-            int handY = (int)(Y - handRadiusOrbit * Math.Sin(angleRad));
+            // 2. Вычисляем и рисуем руку
+            double angleRad = _handAngle * Math.PI / 180.0;
+            int handX = (int)(X + HandOrbitRadius * Math.Cos(angleRad));
+            int handY = (int)(Y - HandOrbitRadius * Math.Sin(angleRad));
 
-            Brush handBrush = new SolidBrush(Color.Orange);
-            g.FillEllipse(handBrush, handX - 8, handY - 8, 16, 16);
+            g.FillEllipse(_handBrush, handX - HandRadius, handY - HandRadius, HandRadius * 2, HandRadius * 2);
+        }
+
+        public void Dispose()
+        {
+            _bodyBrush?.Dispose();
+            _handBrush?.Dispose();
+            _hitBrush?.Dispose();
         }
     }
 }
