@@ -32,7 +32,7 @@ namespace TricksGame
             screenContainer.Dock = DockStyle.Fill;
             this.Controls.Add(screenContainer);
 
-            // Сначала показываем загрузку
+            // Запуск экрана загрузки
             ShowScreen(new LoadingScreen(this));
         }
 
@@ -73,6 +73,7 @@ namespace TricksGame
             mainForm = form;
             this.BackColor = Color.FromArgb(40, 40, 40);
             
+            // Панель с кнопками
             panel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true };
             this.Controls.Add(panel);
             this.Resize += (s, e) => { 
@@ -83,6 +84,16 @@ namespace TricksGame
             AddButton("ИГРАТЬ", () => mainForm.ShowScreen(new GameScreen(mainForm)));
             AddButton("ОПЦИИ", () => {});
             AddButton("ВЫХОД", () => Application.Exit());
+
+            // --- ДОБАВЛЕНИЕ ВЕРСИИ (Задание 2) ---
+            Label lblVersion = new Label();
+            lblVersion.Text = "Alpha 0.0.1";
+            lblVersion.ForeColor = Color.Gray;
+            lblVersion.Dock = DockStyle.Bottom;
+            lblVersion.TextAlign = ContentAlignment.BottomLeft;
+            lblVersion.Padding = new Padding(10, 0, 0, 10); // Отступы
+            this.Controls.Add(lblVersion);
+            // Панель кнопок должна быть поверх версии, но так как FlowLayoutPanel фиксирован по центру, это не критично
         }
 
         private void AddButton(string text, Action onClick)
@@ -108,25 +119,23 @@ namespace TricksGame
         
         // Параметры мира
         private int roadWidth = 200;
-        private int speed = 5;
+        private int speed = 2; // --- ЗАДАНИЕ 3: Замедлили в два раза (было 5) ---
         private bool isGameOver = false;
 
         // --- АНИМАЦИЯ РУКИ ---
-        private float handAngle = 0f;       // Текущий угол руки (в градусах)
-        private bool isAttacking = false;   // Сейчас ли мы бьем?
-        private float attackSpeed = 5f;     // Скорость анимации
-        private int swingDirection = -1;    // Направление взмаха (-1 = вверх, 1 = вниз)
+        private float handAngle = 0f;       
+        private bool isAttacking = false;   
+        private float attackSpeed = 5f;     
+        private float swingDirection = 1f;  // --- ЗАДАНИЕ 4: Начальный удар вверх (1) ---
 
         public GameScreen(MainForm form)
         {
             mainForm = form;
             
-            // Убираем мерцание
             this.SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.UpdateStyles();
             this.BackColor = Color.DarkGray;
             
-            // Обработка нажатия мыши
             this.MouseClick += (s, e) => {
                 if (e.Button == MouseButtons.Left && !isGameOver)
                 {
@@ -140,21 +149,20 @@ namespace TricksGame
             gameTimer.Start();
         }
 
-        // Функция запуска атаки
         private void StartAttack()
         {
             if (!isAttacking)
             {
                 isAttacking = true;
                 handAngle = 0f;
-                swingDirection = -1; // Начинаем взмах вверх (вперед)
+                swingDirection = 1; // Мах вверх
             }
         }
 
         private void GameLoop(object sender, EventArgs e)
         {
             if (!isGameOver) Update();
-            this.Invalidate(); // Перерисовка
+            this.Invalidate(); 
         }
 
         private void Update()
@@ -162,7 +170,7 @@ namespace TricksGame
             playerX = this.Width / 2;
             playerY = this.Height - 60;
 
-            // 1. Спавн врагов
+            // Спавн врагов
             if (enemies.Count < 10)
             {
                 int roadLeft = (this.Width - roadWidth) / 2;
@@ -170,13 +178,13 @@ namespace TricksGame
                 enemies.Add(new Mob(mobX, -20));
             }
 
-            // 2. Движение и коллизии
+            // Движение и коллизии
             for (int i = enemies.Count - 1; i >= 0; i--)
             {
                 Mob m = enemies[i];
                 m.Y += speed;
 
-                // Проверка столкновения
+                // Столкновение
                 int distX = Math.Abs(m.X - playerX);
                 int distY = Math.Abs(m.Y - playerY);
 
@@ -191,19 +199,19 @@ namespace TricksGame
                 if (m.Y > this.Height) enemies.RemoveAt(i);
             }
 
-            // 3. Логика анимации руки
+            // Анимация руки (Исправлено: удар вверх, затем возврат)
             if (isAttacking)
             {
                 handAngle += attackSpeed * swingDirection;
 
-                // Если рука ушла на 45 градусов вверх (отрицательные углы в нашей системе), разворачиваем
-                if (handAngle <= -45f) 
+                // Если рука ушла на 45 градусов ВВЕРХ (положительный угол)
+                if (handAngle >= 45f) 
                 {
-                    swingDirection = 1; // Теперь бьем вниз (возврат)
+                    swingDirection = -1; // Начинаем возвращать руку вниз
                 }
 
-                // Если рука вернулась в 0 градусов - стоп
-                if (handAngle >= 0f)
+                // Если рука вернулась в 0 градусов
+                if (handAngle <= 0f)
                 {
                     handAngle = 0f;
                     isAttacking = false;
@@ -217,7 +225,7 @@ namespace TricksGame
             gameTimer.Stop();
 
             var returnTimer = new System.Windows.Forms.Timer();
-            returnTimer.Interval = 2000;
+            returnTimer.Interval = 2500; // Чуть увеличил время на просмотр надписи
             returnTimer.Tick += (s, e) => {
                 returnTimer.Stop();
                 mainForm.ShowScreen(new MainMenu(mainForm));
@@ -231,59 +239,66 @@ namespace TricksGame
             Graphics g = pe.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            g.Clear(Color.DarkGray); // Очищаем экран (убирает следы)
+            g.Clear(Color.DarkGray);
 
-            // 1. Дорога
+            // Дорога
             int roadLeft = (this.Width - roadWidth) / 2;
             g.FillRectangle(Brushes.Gray, roadLeft, 0, roadWidth, this.Height);
 
-            // 2. ГГ (Зеленая точка)
+            // ГГ
             Brush ggBrush = new SolidBrush(Color.Green);
             g.FillEllipse(ggBrush, playerX - 10, playerY - 10, 20, 20);
 
-            // 3. РУКА (Оранжевая точка)
-            // Рисуем её на определенном расстоянии (радиусе) от героя
-            int handRadiusOrbit = 35; // Расстояние от центра героя
-            // Переводим градусы в радианы для Math.Sin/Cos
+            // Рука
+            int handRadiusOrbit = 35; 
             double angleRad = handAngle * Math.PI / 180.0;
 
-            // Считаем координаты руки на окружности
-            // 0 градусов = Справа от героя. Отрицательные = Вверх (вперед).
+            // --- ИСПРАВЛЕНИЕ УДАРА ---
+            // В WinForms Y=0 это верх. 
+            // Если мы вычитаем Sin(angle), и угол положительный (вверх), то Y уменьшается -> точка идет наверх.
             int handX = (int)(playerX + handRadiusOrbit * Math.Cos(angleRad));
             int handY = (int)(playerY - handRadiusOrbit * Math.Sin(angleRad));
 
             Brush handBrush = new SolidBrush(Color.Orange);
             g.FillEllipse(handBrush, handX - 8, handY - 8, 16, 16);
 
-            // 4. Враги (Красные точки)
+            // Враги
             Brush mobBrush = new SolidBrush(Color.Red);
             foreach (var mob in enemies)
             {
                 g.FillEllipse(mobBrush, mob.X - 6, mob.Y - 6, 12, 12);
             }
 
-            // 5. HP BAR (Снизу слева)
+            // HP BAR (Снизу слева)
             int barWidth = 150;
             int barHeight = 20;
             int x = 10;
-            int y = this.Height - 50; // Прилепляем к низу
+            int y = this.Height - 50;
 
             g.FillRectangle(Brushes.LightGray, x, y, barWidth, barHeight);
             g.DrawRectangle(Pens.Black, x, y, barWidth, barHeight);
-
             int currentBarWidth = (int)((float)currentHp / maxHp * barWidth);
             g.FillRectangle(Brushes.Red, x, y, currentBarWidth, barHeight);
-
             g.DrawString($"{currentHp} / {maxHp}", new Font("Arial", 12), Brushes.Black, new Point(x + 5, y + 2));
 
-            // 6. GAME OVER Оверлей
+            // --- ЗАДАНИЕ 1: ИСПРАВЛЕНИЕ GAME OVER ---
             if (isGameOver)
             {
                 g.FillRectangle(new SolidBrush(Color.FromArgb(150, 0, 0, 0)), 0, 0, this.Width, this.Height);
+                
+                // Большая надпись
                 Font bigFont = new Font("Arial", 40, FontStyle.Bold);
                 StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.DrawString("GAME OVER", bigFont, Brushes.Red, new Rectangle(0, 0, this.Width, this.Height), sf);
-                g.DrawString("Возврат в меню...", new Font("Arial", 20), Brushes.White, new Rectangle(0, 0, this.Width, this.Height), sf);
+
+                // Маленькая надпись сохранения (Справа внизу)
+                Font saveFont = new Font("Arial", 14);
+                // Серый полупрозрачный цвет (A, R, G, B) -> 100% прозрачности нет, это полупрозрачный
+                Brush saveBrush = new SolidBrush(Color.FromArgb(150, 150, 150, 150)); 
+                // Координаты справа внизу
+                Point savePoint = new Point(this.Width - 200, this.Height - 40);
+                
+                g.DrawString("игра сохраняется", saveFont, saveBrush, savePoint);
             }
         }
 
