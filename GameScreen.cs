@@ -31,7 +31,6 @@ namespace TricksGame
 
         // === Параметры атаки ===
         private const int ATK_DAMAGE = 10;
-        private const float ATK_RANGE_SQ = 25 * 25; 
         private const int ATK_KNOCKBACK = 5;
         
         // === Поля ===
@@ -56,7 +55,7 @@ namespace TricksGame
         private bool _isPaused;
         private bool _isSpeedMode;
 
-        // === Координаты кнопки ускорения ===
+        // === Управление UI ===
         private Rectangle _speedButtonRect;
 
         // Кэшированные ресурсы
@@ -66,8 +65,6 @@ namespace TricksGame
         private readonly SolidBrush saveTextBrush;
         private readonly StringFormat centerFormat;
         private readonly SolidBrush gameOverOverlayBrush;
-
-        // === Новые ресурсы GDI+ ===
         private readonly Font _stageFont;
         private readonly Font _pauseFont;
         private readonly Brush _xpFillBrush;
@@ -76,16 +73,22 @@ namespace TricksGame
         private readonly Pen _speedButtonPen;
         private readonly Brush _pauseOverlayBrush;
 
+        // === Ресурс для отладки зоны удара ===
+        private readonly Brush _attackDebugBrush;
+
         public GameScreen(MainForm form)
         {
             mainForm = form;
-            // Передаем ROAD_WIDTH (200) как третий аргумент
+            
+            // Инициализация игрока (передаем ширину дороги)
             player = new Player(Width, Height, ROAD_WIDTH);
 
+            // Настройка оптимизации рисования (Double Buffering)
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             UpdateStyles();
             BackColor = Color.DarkGray;
 
+            // Инициализация шрифтов и кистей
             hpBarFont = new Font("Arial", 12);
             gameOverFont = new Font("Arial", GAME_OVER_FONT_SIZE, FontStyle.Bold);
             saveTextFont = new Font("Arial", SAVE_TEXT_FONT_SIZE);
@@ -93,7 +96,6 @@ namespace TricksGame
             centerFormat = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
             gameOverOverlayBrush = new SolidBrush(Color.FromArgb(150, 0, 0, 0));
 
-            // Новые шрифты и кисти
             _stageFont = new Font("Arial", 20, FontStyle.Bold);
             _pauseFont = new Font("Arial", 36, FontStyle.Bold);
             _xpFillBrush = new SolidBrush(Color.FromArgb(255, 0, 255, 255));
@@ -102,7 +104,10 @@ namespace TricksGame
             _speedButtonPen = new Pen(Color.Red, 2f);
             _pauseOverlayBrush = new SolidBrush(Color.FromArgb(150, 0, 0, 0));
 
-            // Инициализация кнопки ускорения (правый нижний угол, 40x40)
+            // Кисть для отладки зоны удара (полупрозрачный красный)
+            _attackDebugBrush = new SolidBrush(Color.FromArgb(50, 255, 0, 0));
+
+            // Инициализация кнопки ускорения (правый нижний угол)
             _speedButtonRect = new Rectangle(Width - 50, Height - 50, 40, 40);
 
             // Подписка на события
@@ -110,6 +115,7 @@ namespace TricksGame
             MouseClick += GameScreen_MouseClick;
             this.Focus();
 
+            // Запуск таймера игрового цикла
             gameTimer = new System.Windows.Forms.Timer { Interval = TIMER_INTERVAL };
             gameTimer.Tick += GameLoop;
             gameTimer.Start();
@@ -118,16 +124,19 @@ namespace TricksGame
         private void GameLoop(object? sender, EventArgs e)
         {
             if (!isGameOver && !_isPaused)
+            {
                 Update();
-
-            Invalidate();
+            }
+            Invalidate(); // Запрос на перерисовку
         }
 
-        private new void Update()
+        private void Update()
         {
+            // Обновляем позицию игрока
             player.UpdatePosition(Width, Height);
             player.Update();
 
+            // Логика врагов
             SpawnEnemies();
             UpdateEnemies();
         }
@@ -140,6 +149,7 @@ namespace TricksGame
                 return;
 
             int roadLeft = GetRoadLeft();
+            // Спавним врага в пределах дороги
             int mobX = random.Next(roadLeft + ENEMY_SPAWN_MARGIN, roadLeft + ROAD_WIDTH - ENEMY_SPAWN_MARGIN);
             enemies.Add(new Enemy(mobX, ENEMY_SPAWN_Y));
         }
@@ -151,7 +161,7 @@ namespace TricksGame
                 Enemy enemy = enemies[i];
                 enemy.Update(speed);
 
-                // 1. Враг коснулся игрока
+                // 1. Враг коснулся игрока (Урон игроку)
                 if (!enemy.IsDead && enemy.CollidesWithPlayer(player.X, player.Y))
                 {
                     player.TakeDamage(10);
@@ -167,7 +177,7 @@ namespace TricksGame
                 // 2. Атака игрока по врагу
                 if (!enemy.IsDead && player.IsAttacking)
                 {
-                    // Проверяем, попал ли враг в "зону меча" (конус)
+                    // Проверяем, попал ли враг в "зону меча" (полукруг)
                     if (player.IsInAttackZone(enemy.X, enemy.Y))
                     {
                         bool wasAlive = !enemy.IsDead;
@@ -192,12 +202,13 @@ namespace TricksGame
 
         private void AddXPForEnemy(Enemy enemy)
         {
+            // Начисление опыта в зависимости от типа врага
             int xpReward = enemy.GetType().Name switch
             {
-                "FastEnemy" => 1,   // Быстрый
-                "TankEnemy" => 3,   // Живучий
-                "Enemy"     => 2,   // Простой
-                _           => 1    // Фолбэк
+                "FastEnemy" => 1,
+                "TankEnemy" => 3,
+                "Enemy"     => 2,
+                _           => 1
             };
 
             AddXP(xpReward);
@@ -207,15 +218,155 @@ namespace TricksGame
         {
             _currentXP += amount;
             
+            // Проверка на повышение уровня
             if (_currentXP >= _xpToNextLevel)
             {
                 _playerLevel++;
                 _currentXP -= _xpToNextLevel;
-                _xpToNextLevel = (int)(_xpToNextLevel * 1.5);
+                _xpToNextLevel = (int)(_xpToNextLevel * 1.5); // Увеличиваем порог следующего уровня
+                
+                // Опционально: Увеличение дальности меча при каждом 5-м уровне
+                if (_playerLevel % 5 == 0)
+                {
+                    player.AttackRange += 10;
+                }
             }
             
             Invalidate();
         }
+
+        // --- ОТРИСОВКА ---
+
+        protected override void OnPaint(PaintEventArgs pe)
+        {
+            base.OnPaint(pe);
+
+            Graphics g = pe.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Color.DarkGray);
+
+            DrawRoad(g);
+            
+            // Рисуем отладочную зону удара перед сущностями, чтобы она была под ними
+            DrawAttackDebug(g);
+
+            DrawEntities(g);
+            DrawHUD(g);
+            DrawXPBar(g);
+            DrawStage(g);
+            DrawSpeedButton(g);
+
+            if (_isPaused)
+            {
+                DrawPauseOverlay(g);
+            }
+            else if (isGameOver)
+            {
+                DrawGameOverOverlay(g);
+            }
+        }
+
+        private void DrawRoad(Graphics g)
+        {
+            int roadLeft = GetRoadLeft();
+            g.FillRectangle(Brushes.Gray, roadLeft, 0, ROAD_WIDTH, Height);
+        }
+
+        private void DrawEntities(Graphics g)
+        {
+            player.Draw(g);
+
+            foreach (Enemy enemy in enemies)
+            {
+                enemy.Draw(g); 
+            }
+        }
+
+        /// <summary>
+        /// Рисует полупрозрачную зону поражения (Debug Visualizer)
+        /// </summary>
+        private void DrawAttackDebug(Graphics g)
+        {
+            if (!player.IsAttacking) return;
+
+            // Рисуем эллипс над игроком, соответствующий зоне поражения
+            int range = (int)player.AttackRange;
+            
+            // Координаты: (x - range/2, y - range) - сдвиг вверх
+            g.FillEllipse(_attackDebugBrush, 
+                player.X - range, 
+                player.Y - range, 
+                range * 2, 
+                range * 2);
+        }
+
+        private void DrawHUD(Graphics g)
+        {
+            int x = HP_BAR_MARGIN_X;
+            int y = Height - HP_BAR_MARGIN_BOTTOM;
+
+            // Фон полоски HP
+            g.FillRectangle(Brushes.LightGray, x, y, HP_BAR_WIDTH, HP_BAR_HEIGHT);
+            g.DrawRectangle(Pens.Black, x, y, HP_BAR_WIDTH, HP_BAR_HEIGHT);
+
+            // Текущее HP
+            int currentBarWidth = (int)((float)player.CurrentHp / player.MaxHp * HP_BAR_WIDTH);
+            g.FillRectangle(Brushes.Red, x, y, currentBarWidth, HP_BAR_HEIGHT);
+
+            // Текст HP
+            string hpText = $"{player.CurrentHp} / {player.MaxHp}";
+            g.DrawString(hpText, hpBarFont, Brushes.Black, new Point(x + 5, y + 2));
+        }
+
+        private void DrawXPBar(Graphics g)
+        {
+            int x = HP_BAR_MARGIN_X;
+            int y = Height - HP_BAR_MARGIN_BOTTOM + HP_BAR_HEIGHT + 5;
+            int height = 8;
+
+            g.FillRectangle(_xpBgBrush, x, y, HP_BAR_WIDTH, height);
+            
+            int xpWidth = (int)((float)_currentXP / _xpToNextLevel * HP_BAR_WIDTH);
+            if (xpWidth > 0)
+            {
+                g.FillRectangle(_xpFillBrush, x, y, xpWidth, height);
+            }
+
+            g.DrawRectangle(Pens.Cyan, x, y, HP_BAR_WIDTH, height);
+        }
+
+        private void DrawStage(Graphics g)
+        {
+            g.DrawString($"Stage {_currentStage}", _stageFont, Brushes.LightGray, 
+                new Point(Width / 2, 20), new StringFormat { Alignment = StringAlignment.Center });
+        }
+
+        private void DrawSpeedButton(Graphics g)
+        {
+            g.FillRectangle(_speedButtonBrush, _speedButtonRect);
+            g.DrawRectangle(_speedButtonPen, _speedButtonRect);
+            
+            string text = _isSpeedMode ? "x2" : "x1";
+            g.DrawString(text, hpBarFont, Brushes.Red, new PointF(_speedButtonRect.X + 5, _speedButtonRect.Y + 5));
+        }
+
+        private void DrawPauseOverlay(Graphics g)
+        {
+            g.FillRectangle(_pauseOverlayBrush, 0, 0, Width, Height);
+            g.DrawString("PAUSED", _pauseFont, Brushes.White, 
+                new Point(Width / 2, Height / 2), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+        }
+
+        private void DrawGameOverOverlay(Graphics g)
+        {
+            g.FillRectangle(gameOverOverlayBrush, 0, 0, Width, Height);
+            g.DrawString("GAME OVER", gameOverFont, Brushes.Red, new Rectangle(0, 0, Width, Height), centerFormat);
+            
+            Point savePoint = new Point(Width - SAVE_TEXT_MARGIN_RIGHT, Height - SAVE_TEXT_MARGIN_BOTTOM);
+            g.DrawString("игра сохраняется", saveTextFont, saveTextBrush, savePoint);
+        }
+
+        // --- СОБЫТИЯ ---
 
         private void GameScreen_KeyDown(object? sender, KeyEventArgs e)
         {
@@ -267,7 +418,7 @@ namespace TricksGame
                 return;
             }
 
-            // Атака
+            // Атака (Левый клик)
             if (e.Button == MouseButtons.Left && !isGameOver && !_isPaused)
             {
                 player.Attack();
@@ -299,111 +450,6 @@ namespace TricksGame
         private int GetRoadLeft()
         {
             return (Width - ROAD_WIDTH) / 2;
-        }
-
-        protected override void OnPaint(PaintEventArgs pe)
-        {
-            base.OnPaint(pe);
-
-            Graphics g = pe.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.DarkGray);
-
-            DrawRoad(g);
-            DrawEntities(g);
-            DrawHUD(g);
-            DrawXPBar(g);
-            DrawStage(g);
-
-            if (_isPaused)
-            {
-                DrawPauseOverlay(g);
-            }
-            else if (isGameOver)
-            {
-                DrawGameOverOverlay(g);
-            }
-
-            DrawSpeedButton(g);
-        }
-
-        private void DrawRoad(Graphics g)
-        {
-            int roadLeft = GetRoadLeft();
-            g.FillRectangle(Brushes.Gray, roadLeft, 0, ROAD_WIDTH, Height);
-        }
-
-        private void DrawEntities(Graphics g)
-        {
-            player.Draw(g);
-
-            foreach (Enemy enemy in enemies)
-            {
-                enemy.Draw(g); 
-            }
-        }
-
-        private void DrawHUD(Graphics g)
-        {
-            int x = HP_BAR_MARGIN_X;
-            int y = Height - HP_BAR_MARGIN_BOTTOM;
-
-            g.FillRectangle(Brushes.LightGray, x, y, HP_BAR_WIDTH, HP_BAR_HEIGHT);
-            g.DrawRectangle(Pens.Black, x, y, HP_BAR_WIDTH, HP_BAR_HEIGHT);
-
-            int currentBarWidth = (int)((float)player.CurrentHp / player.MaxHp * HP_BAR_WIDTH);
-            g.FillRectangle(Brushes.Red, x, y, currentBarWidth, HP_BAR_HEIGHT);
-
-            string hpText = $"{player.CurrentHp} / {player.MaxHp}";
-            g.DrawString(hpText, hpBarFont, Brushes.Black, new Point(x + 5, y + 2));
-        }
-
-        private void DrawXPBar(Graphics g)
-        {
-            int x = HP_BAR_MARGIN_X;
-            int y = Height - HP_BAR_MARGIN_BOTTOM + HP_BAR_HEIGHT + 5;
-            int height = 8;
-
-            g.FillRectangle(_xpBgBrush, x, y, HP_BAR_WIDTH, height);
-            
-            int xpWidth = (int)((float)_currentXP / _xpToNextLevel * HP_BAR_WIDTH);
-            if (xpWidth > 0)
-            {
-                g.FillRectangle(_xpFillBrush, x, y, xpWidth, height);
-            }
-
-            g.DrawRectangle(Pens.Cyan, x, y, HP_BAR_WIDTH, height);
-        }
-
-        private void DrawStage(Graphics g)
-        {
-            g.DrawString($"Stage {_currentStage}", _stageFont, Brushes.LightGray, 
-                new Point(Width / 2, 20), new StringFormat { Alignment = StringAlignment.Center });
-        }
-
-        private void DrawSpeedButton(Graphics g)
-        {
-            g.FillRectangle(_speedButtonBrush, _speedButtonRect);
-            g.DrawRectangle(_speedButtonPen, _speedButtonRect);
-            
-            string text = _isSpeedMode ? "x2" : "x1";
-            g.DrawString(text, hpBarFont, Brushes.Red, new PointF(_speedButtonRect.X + 5, _speedButtonRect.Y + 5));
-        }
-
-        private void DrawPauseOverlay(Graphics g)
-        {
-            g.FillRectangle(_pauseOverlayBrush, 0, 0, Width, Height);
-            g.DrawString("PAUSED", _pauseFont, Brushes.White, 
-                new Point(Width / 2, Height / 2), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-        }
-
-        private void DrawGameOverOverlay(Graphics g)
-        {
-            g.FillRectangle(gameOverOverlayBrush, 0, 0, Width, Height);
-            g.DrawString("GAME OVER", gameOverFont, Brushes.Red, new Rectangle(0, 0, Width, Height), centerFormat);
-            
-            Point savePoint = new Point(Width - SAVE_TEXT_MARGIN_RIGHT, Height - SAVE_TEXT_MARGIN_BOTTOM);
-            g.DrawString("игра сохраняется", saveTextFont, saveTextBrush, savePoint);
         }
 
         protected override void OnResize(EventArgs e)

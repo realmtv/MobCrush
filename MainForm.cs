@@ -12,7 +12,7 @@ namespace TricksGame
         public MainForm()
         {
             this.Text = "Tricks";
-            this.Size = new Size(480, 720);
+            this.Size = new Size(480, 720); // Размер мобильного экрана
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.BackColor = Color.Black; // Общий фон для страховки
@@ -21,7 +21,7 @@ namespace TricksGame
             screenContainer.Dock = DockStyle.Fill;
             this.Controls.Add(screenContainer);
 
-            // Запуск первого экрана
+            // Запуск первого экрана (Загрузка)
             ShowScreen(new LoadingScreen(this));
         }
 
@@ -62,9 +62,9 @@ namespace TricksGame
             };
             this.Controls.Add(label);
 
-            // Таймер перехода в меню
+            // Таймер перехода в меню (1 секунда)
             var timer = new System.Windows.Forms.Timer();
-            timer.Interval = 1000; // 1 секунда
+            timer.Interval = 1000; 
             timer.Tick += (s, e) => 
             { 
                 timer.Stop(); 

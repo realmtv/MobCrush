@@ -4,7 +4,7 @@ using System.Drawing;
 
 namespace TricksGame
 {
-    // --- Класс Частицы (эффект взрыва) ---
+    // --- Класс Частицы (эффект взрыва при смерти врага) ---
     public class Particle
     {
         public float X, Y;
@@ -15,62 +15,82 @@ namespace TricksGame
 
         public Particle(int x, int y, Brush brush)
         {
-            X = x; Y = y;
+            X = x;
+            Y = y;
             _brush = brush;
-            VX = (_rng.Next(-3, 4)) * 1.5f; // Случайный разлет по X
-            VY = (_rng.Next(-3, 4)) * 1.5f; // Случайный разлет по Y
-            Life = 15 + _rng.Next(10, 10);  // Живет ~0.3-0.5 секунды
+            // Случайный разлет во все стороны
+            VX = (_rng.Next(-3, 4)) * 1.5f;
+            VY = (_rng.Next(-3, 4)) * 1.5f;
+            // Время жизни частицы (15-25 кадров)
+            Life = 15 + _rng.Next(10, 10);
         }
 
-        public void Update() {
-            X += VX; Y += VY; Life--;
+        public void Update()
+        {
+            X += VX;
+            Y += VY;
+            Life--;
         }
 
-        public void Draw(Graphics g) {
-            g.FillRectangle(_brush, X - 2, Y - 2, 4, 4); // Квадратик 4x4
+        public void Draw(Graphics g)
+        {
+            // Рисуем маленький квадрат 4x4
+            g.FillRectangle(_brush, X - 2, Y - 2, 4, 4);
         }
     }
 
     // --- Класс Врага ---
     public class Enemy
     {
-        public const int Radius = 6;
+        public const int Radius = 6; // Радиус врага для рисования
         public int X { get; set; }
         public int Y { get; set; }
-        
-        // Поля
+
+        // Поля состояния
         private int _currentHp;
         private bool _isDead;
         private Brush _bodyBrush;
-        private float _speedMultiplier;
-        
-        // Частицы и состояние
-        private List<Particle> _particles = new List<Particle>();
-        private int _flashTimer; // Мигание при ударе
+        private float _speedMultiplier; // Множитель скорости (быстрый/медленный)
 
-        // Свойство для GameScreen
+        // Система частиц и визуальные эффекты
+        private List<Particle> _particles = new List<Particle>();
+        private int _flashTimer; // Таймер мигания белым при ударе
+
+        // Свойство для GameScreen (проверка смерти)
         public bool IsDead => _isDead;
 
+        // КОНСТРУКТОР
         public Enemy(int x, int y)
         {
-            X = x; Y = y;
+            X = x;
+            Y = y;
             Random rng = new Random();
-            
-            // Генерация типа (Обычный, Быстрый, Танк)
+
+            // Генерация типа врага
+            // 0-5 (60%) - Обычный
+            // 6-8 (30%) - Быстрый
+            // 9 (10%) - Танк
             int type = rng.Next(0, 10);
-            if (type < 6) 
-            { // 60% - Обычный (Красный)
-                _currentHp = 5; _speedMultiplier = 1.0f;
+
+            if (type < 6)
+            {
+                // Обычный враг (Красный)
+                _currentHp = 5;
+                _speedMultiplier = 1.0f;
                 _bodyBrush = new SolidBrush(Color.Red);
-            } 
-            else if (type < 9) 
-            { // 30% - Быстрый (Оранжевый)
-                _currentHp = 3; _speedMultiplier = 1.5f;
+            }
+            else if (type < 9)
+            {
+                // Быстрый враг (Оранжевый)
+                _currentHp = 3;
+                _speedMultiplier = 1.5f;
                 _bodyBrush = new SolidBrush(Color.Orange);
-            } 
-            else 
-            { // 10% - Танк (Фиолетовый)
-                _currentHp = 15; _speedMultiplier = 0.7f;
+            }
+            else
+            {
+                // Танк (Фиолетовый)
+                _currentHp = 15;
+                _speedMultiplier = 0.7f;
                 _bodyBrush = new SolidBrush(Color.Purple);
             }
         }
@@ -79,40 +99,46 @@ namespace TricksGame
         public void TakeDamage(int damage)
         {
             if (_isDead) return;
+
             _currentHp -= damage;
-            _flashTimer = 5; // Мигаем 5 кадров
+            _flashTimer = 5; // Включаем мигание на 5 кадров
 
             if (_currentHp <= 0)
             {
                 _isDead = true;
-                // Создаем 10 частиц смерти в центре тела
+                // Создаем взрыв частиц в центре тела
                 for (int i = 0; i < 10; i++)
+                {
                     _particles.Add(new Particle(X, Y, _bodyBrush));
+                }
             }
         }
 
-        // Обновление (движение или частиц)
+        // Обновление (движение и частицы)
         public void Update(int speed)
         {
+            // Если враг жив, он движется вниз
             if (!_isDead)
             {
                 Y += (int)(speed * _speedMultiplier);
                 if (_flashTimer > 0) _flashTimer--;
             }
 
-            // Обновляем частицы (удаляем мертвые)
+            // Обновляем частицы и удаляем те, что отжили свое
             for (int i = _particles.Count - 1; i >= 0; i--)
             {
                 _particles[i].Update();
                 if (_particles[i].Life <= 0)
+                {
                     _particles.RemoveAt(i);
+                }
             }
         }
 
         // Отрисовка
         public void Draw(Graphics g)
         {
-            // 1. Если жив (или умираем, но частицы еще не кончились)
+            // 1. Рисуем тело (если жив)
             if (!_isDead)
             {
                 // Если мигаем - рисуем белым, иначе своим цветом
@@ -120,30 +146,33 @@ namespace TricksGame
                 g.FillEllipse(currentBrush, X - Radius, Y - Radius, Radius * 2, Radius * 2);
             }
 
-            // 2. Рисуем частицы
+            // 2. Рисуем все активные частицы
             foreach (Particle p in _particles)
+            {
                 p.Draw(g);
+            }
         }
 
         // Проверка выхода за экран (нужна для удаления из списка в GameScreen)
         public bool IsOffScreen(int screenHeight)
         {
             if (!_isDead)
-                return Y > screenHeight + 10; // Живой ушел вниз
+                return Y > screenHeight + 10; // Живой ушел вниз за край
 
-            // Мертвый (с частицами) удаляем, когда частицы исчезнут
+            // Мертвый (с частицами) удаляем, когда все частицы исчезнут
             return _particles.Count == 0;
         }
 
-        // Проверка коллизии с игроком
+        // Проверка коллизии с игроком (касание)
         public bool CollidesWithPlayer(int pX, int pY)
         {
             if (_isDead) return false;
 
             int dx = X - pX;
             int dy = Y - pY;
-            int distance = Math.Abs(dx) + Math.Abs(dy); // Простая проверка
-            return distance < 20; // Дистанция касания
+            // Простая проверка дистанции (Манхэттенское расстояние)
+            int distance = Math.Abs(dx) + Math.Abs(dy);
+            return distance < 20; // Если близко - считаем касанием
         }
     }
 }

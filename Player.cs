@@ -15,7 +15,7 @@ namespace TricksGame
         private const float MaxSwingAngle = 45f;
 
         // --- Параметры Меча (Хитбокс) ---
-        public float AttackRange { get; set; } = 95f; // Дальность меча
+        public float AttackRange { get; set; } = 95f; // Дальность меча (можно менять для баланса)
 
         // Геометрия дороги (запоминаем при инициализации)
         private readonly int _roadWidth;
