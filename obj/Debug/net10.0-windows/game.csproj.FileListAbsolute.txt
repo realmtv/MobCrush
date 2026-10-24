@@ -1,0 +1,14 @@
+C:\HOME\Game\bin\Debug\net10.0-windows\game.exe
+C:\HOME\Game\bin\Debug\net10.0-windows\game.deps.json
+C:\HOME\Game\bin\Debug\net10.0-windows\game.runtimeconfig.json
+C:\HOME\Game\bin\Debug\net10.0-windows\game.dll
+C:\HOME\Game\bin\Debug\net10.0-windows\game.pdb
+C:\HOME\Game\obj\Debug\net10.0-windows\game.GeneratedMSBuildEditorConfig.editorconfig
+C:\HOME\Game\obj\Debug\net10.0-windows\game.AssemblyInfoInputs.cache
+C:\HOME\Game\obj\Debug\net10.0-windows\game.AssemblyInfo.cs
+C:\HOME\Game\obj\Debug\net10.0-windows\game.csproj.CoreCompileInputs.cache
+C:\HOME\Game\obj\Debug\net10.0-windows\game.dll
+C:\HOME\Game\obj\Debug\net10.0-windows\refint\game.dll
+C:\HOME\Game\obj\Debug\net10.0-windows\game.pdb
+C:\HOME\Game\obj\Debug\net10.0-windows\game.genruntimeconfig.cache
+C:\HOME\Game\obj\Debug\net10.0-windows\ref\game.dll
