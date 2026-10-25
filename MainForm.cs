@@ -2,7 +2,7 @@ using System;
 using System.Windows.Forms;
 using System.Drawing;
 
-namespace TricksGame
+namespace MobCrush
 {
     // --- ГЛАВНОЕ ОКНО (CONTROLLER) ---
     public class MainForm : Form
@@ -11,7 +11,7 @@ namespace TricksGame
 
         public MainForm()
         {
-            this.Text = "Tricks";
+            this.Text = "Mob Crush";
             this.Size = new Size(480, 720); // Размер мобильного экрана
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -110,7 +110,7 @@ namespace TricksGame
 
             // Версия игры (внизу слева)
             Label lblVersion = new Label();
-            lblVersion.Text = "Alpha 0.0.1";
+            lblVersion.Text = "v1.0 a";
             lblVersion.ForeColor = Color.Gray;
             lblVersion.Dock = DockStyle.Bottom;
             lblVersion.TextAlign = ContentAlignment.BottomLeft;

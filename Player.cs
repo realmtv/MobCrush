@@ -1,7 +1,7 @@
 using System;
 using System.Drawing;
 
-namespace TricksGame
+namespace MobCrush
 {
     public class Player : IDisposable
     {

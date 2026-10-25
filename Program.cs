@@ -1,13 +1,13 @@
 using System;
 using System.Windows.Forms;
 
-namespace TricksGame
+namespace MobCrush
 {
     public class Program
     {
         // --- Конфигурация ---
         // Единый источник версии для отображения в меню
-        public const string GameVersion = "Alpha 0.0.1";
+        public const string GameVersion = "v1.0 a - Mob Crush";
 
         [STAThread]
         public static void Main()

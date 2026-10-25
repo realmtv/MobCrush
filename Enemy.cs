@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 
-namespace TricksGame
+namespace MobCrush
 {
     // Добавлен интерфейс IDisposable для исправления ошибки вызова Dispose() в GameManager
     public class Enemy : IDisposable

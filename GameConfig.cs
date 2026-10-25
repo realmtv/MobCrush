@@ -1,6 +1,6 @@
 using System;
 
-namespace TricksGame
+namespace MobCrush
 {
     public static class GameConfig
     {
