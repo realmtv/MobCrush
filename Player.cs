@@ -49,9 +49,14 @@ namespace TricksGame
             Y = screenHeight - 60;
         }
 
+        /// <summary>
+        /// Метод атаки. Теперь поддерживает спам-клики: 
+        /// сбрасывает угол руки в ноль при каждом вызове, позволяя начинать анимацию мгновенно.
+        /// </summary>
         public void Attack()
         {
             _isAttacking = true;
+            _handAngle = 0f; // Сброс угла для мгновенного повторного удара (спам)
             _swingDirection = 1f;
         }
 
@@ -64,7 +69,13 @@ namespace TricksGame
                 _handAngle += AttackSpeed * _swingDirection;
 
                 if (_handAngle >= MaxSwingAngle) _swingDirection = -1f;
-                if (_handAngle <= 0f) { _handAngle = 0f; _isAttacking = false; }
+                
+                // Возврат в исходное положение завершает атаку
+                if (_handAngle <= 0f) 
+                { 
+                    _handAngle = 0f; 
+                    _isAttacking = false; 
+                }
             }
         }
 
@@ -83,9 +94,12 @@ namespace TricksGame
             int dx = targetX - X;
             int dy = targetY - Y;
 
-            if (dy >= 0) return false;
+            if (dy >= 0) return false; // Только перед игроком
+            
             double distSq = (double)dx * dx + (double)dy * dy;
             if (distSq > (double)AttackRange * AttackRange) return false;
+            
+            // Ограничение по ширине дороги (опционально, если нужно стрелять только "вперед")
             if (Math.Abs(dx) > _roadWidth / 2) return false;
 
             return true;
